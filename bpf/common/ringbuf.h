@@ -17,6 +17,8 @@
 #define EVENT_GO_KAFKA 9
 #define EVENT_GO_REDIS 10
 #define EVENT_GO_KAFKA_SEG 11 // the segment-io version (kafka-go) has different format
+#define EVENT_MYSQL_REQUEST 12
+#define EVENT_MYSQL_RESPONSE 13
 
 // setting here the following map definitions without pinning them to a global namespace
 // would lead that services running both HTTP and GRPC server would duplicate
