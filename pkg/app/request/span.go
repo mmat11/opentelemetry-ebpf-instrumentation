@@ -115,6 +115,12 @@ type PidInfo struct {
 	Namespace uint32
 }
 
+type SQLError struct {
+	Code     uint16 `json:"code"`
+	SQLState string `json:"sqlState"`
+	Message  string `json:"message"`
+}
+
 // Span contains the information being submitted by the following nodes in the graph.
 // It enables comfortable handling of data from Go.
 // REMINDER: any attribute here must be also added to the functions SpanOTELGetters,
@@ -145,6 +151,8 @@ type Span struct {
 	OtherNamespace string         `json:"-"`
 	Statement      string         `json:"-"`
 	SubType        int            `json:"-"`
+	SQLCommand     string         `json:"-"`
+	SQLError       *SQLError      `json:"sqlError,omitempty"`
 }
 
 func (s *Span) Inside(parent *Span) bool {
@@ -199,12 +207,29 @@ func spanAttributes(s *Span) SpanAttributes {
 			"serverPort": strconv.Itoa(s.HostPort),
 		}
 	case EventTypeSQLClient:
+		var (
+			code     uint16 = 0
+			sqlState        = ""
+			message         = ""
+		)
+
+		if s.SQLError != nil {
+			code = s.SQLError.Code
+			sqlState = s.SQLError.SQLState
+			message = s.SQLError.Message
+		}
+
 		return SpanAttributes{
-			"serverAddr": SpanHost(s),
-			"serverPort": strconv.Itoa(s.HostPort),
-			"operation":  s.Method,
-			"table":      s.Path,
-			"statement":  s.Statement,
+			"serverAddr":       SpanHost(s),
+			"serverPort":       strconv.Itoa(s.HostPort),
+			"operation":        s.Method,
+			"table":            s.Path,
+			"statement":        s.Statement,
+			"sqlCommand":       s.SQLCommand,
+			"errorCode":        strconv.FormatUint(uint64(code), 10),
+			"sqlState":         sqlState,
+			"errorMessage":     message,
+			"errorDescription": s.SQLErrorDescription(),
 		}
 	case EventTypeRedisServer:
 		return SpanAttributes{
@@ -235,6 +260,17 @@ func spanAttributes(s *Span) SpanAttributes {
 	}
 
 	return SpanAttributes{}
+}
+
+func (s *Span) SQLErrorDescription() string {
+	if s.SQLError == nil {
+		return ""
+	}
+
+	return fmt.Sprintf(
+		"MySQL Server errored for command 'COM_%s': error_code=%d sql_state=%s message=%s",
+		s.SQLCommand, s.SQLError.Code, s.SQLError.SQLState, s.SQLError.Message,
+	)
 }
 
 func (s Span) MarshalJSON() ([]byte, error) {

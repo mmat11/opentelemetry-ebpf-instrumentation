@@ -31,8 +31,16 @@
 #define HOST_MAX_LEN 100
 #define SCHEME_MAX_LEN 10
 
+#define MYSQL_QUERY_MAX 8192 // Maximum tracked query length. Give up if it's longer.
+#define MYSQL_QUERY_MAX_MASK MYSQL_QUERY_MAX - 1
+#define MYSQL_ERROR_MESSAGE_MAX 512 // MYSQL_ERRMSG_SIZE
+#define MYSQL_ERROR_MESSAGE_MAX_MASK MYSQL_ERROR_MESSAGE_MAX - 1
+
+enum mysql_response_status { MYSQL_RESP_OK = 0, MYSQL_RESP_ERR = 1 };
+
 // Trace of an HTTP call invocation. It is instantiated by the return uprobe and forwarded to the
 // user space through the events ringbuffer.
+// TODO(matt): fix naming
 typedef struct http_request_trace_t {
     u8 type; // Must be first
     u8 _pad0[1];
@@ -52,6 +60,7 @@ typedef struct http_request_trace_t {
     pid_info pid;
 } http_request_trace;
 
+// TODO(matt): fix naming
 typedef struct sql_request_trace_t {
     u8 type; // Must be first
     u8 _pad[1];
@@ -98,3 +107,66 @@ typedef struct redis_client_req {
     connection_info_t conn;
     tp_info_t tp;
 } redis_client_req_t;
+
+// https://mariadb.com/kb/en/ok_packet/
+struct mysql_response_ok {
+    // Empty; will be used for prepared statements support
+};
+
+// https://mariadb.com/kb/en/err_packet/
+//
+// int<1> ERR_Packet header = 0xFF
+// int<2> error code. see error list
+// if (errorcode == 0xFFFF) /* progress reporting */
+//     int<1> stage
+//     int<1> max_stage
+//     int<3> progress
+//     string<lenenc> progress_info
+// else
+//     if (next byte = '#')
+//         string<1> sql state marker '#'
+//         string<5>sql state
+//         string<EOF> human-readable error message
+//     else
+//         string<EOF> human-readable error message
+struct mysql_response_err {
+    // https://mariadb.com/kb/en/mariadb-error-code-reference/
+    uint16_t error_code;
+    uint8_t sql_state[7];
+    char _pad;
+    uint8_t error_message[MYSQL_ERROR_MESSAGE_MAX];
+};
+
+typedef struct mysql_request_event {
+    uint8_t type; // Must be first
+    char _pad1[7];
+    connection_info_t conn_info;
+    pid_info pid;
+    uint8_t ssl;
+    char _pad2[7];
+    uint64_t start_monotime_ns;
+    uint64_t end_monotime_ns;
+    uint8_t command_id;
+    char _pad3[3];
+    uint32_t query_len;
+    uint8_t buf[MYSQL_QUERY_MAX];
+    tp_info_t tp;
+} mysql_request_event_t;
+
+typedef struct mysql_response_event {
+    uint8_t type; // Must be first
+    char _pad1[7];
+    connection_info_t conn_info;
+    pid_info pid;
+    uint8_t ssl;
+    char _pad2[7];
+    uint64_t start_monotime_ns;
+    uint64_t end_monotime_ns;
+    uint8_t command_id;
+    char _pad3[3];
+    enum mysql_response_status response_status;
+    struct mysql_response_err err;
+    struct mysql_response_ok ok;
+    char _pad4[6];
+    tp_info_t tp;
+} mysql_response_event_t;

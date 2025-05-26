@@ -20,3 +20,5 @@ const tcp_req_t *unused_5 __attribute__((unused));
 const kafka_client_req_t *unused_6 __attribute__((unused));
 const redis_client_req_t *unused_7 __attribute__((unused));
 const kafka_go_req_t *unused_8 __attribute__((unused));
+const mysql_request_event_t *unused_9 __attribute__((unused));
+const mysql_response_event_t *unused_10 __attribute__((unused));

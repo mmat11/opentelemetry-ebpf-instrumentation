@@ -176,6 +176,10 @@ func (p *Tracer) SetupTailCalls() {
 			index: 5,
 			prog:  p.bpfObjects.BeylaProtocolHttp2GrpcHandleEndFrame,
 		},
+		{
+			index: 6,
+			prog:  p.bpfObjects.BeylaProtocolMysql,
+		},
 	} {
 		err := p.bpfObjects.JumpTable.Update(uint32(tc.index), uint32(tc.prog.FD()), ebpf.UpdateAny)
 		if err != nil {
