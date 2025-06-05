@@ -698,6 +698,10 @@ func traceAttributes(span *request.Span, optionalAttrs map[attr.Name]struct{}) [
 				attrs = append(attrs, request.DBCollectionName(table))
 			}
 		}
+		if span.Status == 1 {
+			attrs = append(attrs, request.DBResponseStatusCode(span.SQLError.Code))
+			attrs = append(attrs, request.ErrorType(span.SQLErrorDescription()))
+		}
 	case request.EventTypeRedisServer, request.EventTypeRedisClient:
 		attrs = []attribute.KeyValue{
 			request.ServerAddr(request.HostAsServer(span)),

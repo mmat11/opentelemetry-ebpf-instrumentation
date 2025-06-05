@@ -88,6 +88,10 @@ func DBQueryText(val string) attribute.KeyValue {
 	return attribute.Key(attr.DBQueryText).String(val)
 }
 
+func DBResponseStatusCode(val uint16) attribute.KeyValue {
+	return attribute.Key(attr.DBResponseStatusCode).Int(int(val))
+}
+
 func DBCollectionName(val string) attribute.KeyValue {
 	return attribute.Key(attr.DBCollectionName).String(val)
 }
